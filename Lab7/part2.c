@@ -20,6 +20,8 @@ int main(void)
     int y_max = 239;            // Max y coordinate
     short int color = 0x07E0;   // Color of line (Green)
 
+    clear_screen();
+
     while (true) {
         draw_line(0, y, 319, y, 0x0);   // Clear the previous line
         if (going_down && y == y_max)   // Start going up if at bottom

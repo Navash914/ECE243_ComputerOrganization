@@ -2,6 +2,15 @@
 #include <stdlib.h>
 //#include <time.h>
 
+// Struct to represent each rectangle
+typedef struct rect {
+    int x, y;           // Coordinate of rectangle position
+    int width, height;  // Dimensions of rectangle
+    bool down, right;   // Direction of movement of rectangle
+    int speed;
+    short int color;    // Color of rectangle
+} Rectangle;
+
 // Function declarations
 int abs(int x);
 void swap(int *x, int *y);
@@ -13,14 +22,6 @@ void wait_for_vsync();
 // global variables
 volatile int pixel_buffer_start; 
 volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
-
-// Struct to represent each rectangle
-typedef struct rect {
-    int x, y;           // Coordinate of rectangle position
-    int width, height;  // Dimensions of rectangle
-    bool down, right;   // Direction of movement of rectangle
-    short int color;    // Color of rectangle
-} Rectangle;
 
 int main(void)
 {
@@ -48,6 +49,9 @@ int main(void)
         // Randomize starting direction
         rects[i].down = (bool) (rand() % 2);
         rects[i].right = (bool) (rand() % 2);
+
+        // Randomize starting speed
+        rects[i].speed = 1 + rand() % 4;
 
         // Randomize starting color
         rects[i].color = rand() % 0xFFFF;
@@ -107,11 +111,13 @@ int main(void)
                 // Rectangle hit a horizontal boundary
                 rect->right = !rect->right;     // Reverse horizontal direction
                 rect->color = rand() % 0xFFFF;  // Randomize color
+                rect->speed = 1 + rand() % 4;  // Randomize speed
             }
             if ((rect->down && rect->y + rect->height >= y_max) || (!rect->down && rect->y <= y_min)) {
                 // Rectangle hit a vertical boundary
                 rect->down = !rect->down;       // Reverse vertical direction
                 rect->color = rand() % 0xFFFF;  // Randomize color
+                rect->speed = 1 + rand() % 4;  // Randomize speed
             }
 
             // Direction to move rectangle
@@ -119,8 +125,8 @@ int main(void)
             int delta_y = rect->down ? 1 : -1;
 
             // Update rectangle coordinates
-            rect->x += delta_x;
-            rect->y += delta_y;
+            rect->x += delta_x * rect->speed;
+            rect->y += delta_y * rect->speed;
         }
 
         wait_for_vsync(); // swap front and back buffers on VGA vertical sync
@@ -200,5 +206,7 @@ void wait_for_vsync() {
 
 void plot_pixel(int x, int y, short int line_color)
 {
+    if (x < 0 || x >= 320 || y < 0 || y >= 240)
+        return;
     *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
 }
