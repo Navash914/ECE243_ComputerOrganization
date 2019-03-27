@@ -2,6 +2,7 @@
 #include <stdlib.h>
 //#include <time.h>
 
+// Function declarations
 int abs(int x);
 void swap(int *x, int *y);
 void clear_screen();
@@ -9,37 +10,50 @@ void draw_line(int x0, int y0, int x1, int y1, short int color);
 void plot_pixel(int x, int y, short int line_color);
 void wait_for_vsync();
 
-volatile int pixel_buffer_start; // global variable
+// global variables
+volatile int pixel_buffer_start; 
 volatile int * pixel_ctrl_ptr = (int *)0xFF203020;
 
+// Struct to represent each rectangle
 typedef struct rect {
-    int x, y;
-    int width, height;
-    bool down, right;
-    short int color;
+    int x, y;           // Coordinate of rectangle position
+    int width, height;  // Dimensions of rectangle
+    bool down, right;   // Direction of movement of rectangle
+    short int color;    // Color of rectangle
 } Rectangle;
 
 int main(void)
 {
     int x_min = 0, y_min = 0;
     int x_max = 320, y_max = 240;
-    int SIZE = 8;
+
+    int SIZE = 8;   // Number of rectangles on screen
+
+    // Seed the random number generator
+    // Not sure why it was giving an error. Will try fixing later
     //time_t t;
     //srand((unsigned) time(&t));
 
-    // initialize location and direction of rectangles(not shown)
+    // initialize location and direction of rectangles
     Rectangle rects[SIZE];
     int i;
     for (i = 0; i < SIZE; ++i) {
         rects[i].width = 2;
         rects[i].height = rects[i].width;
+
+        // Randomize starting point
         rects[i].x = rand() % (x_max - rects[i].width);
         rects[i].y = rand() % (y_max - rects[i].height);
+
+        // Randomize starting direction
         rects[i].down = (bool) (rand() % 2);
         rects[i].right = (bool) (rand() % 2);
-        //rects[i].color = 0x001F;    // Blue
+
+        // Randomize starting color
         rects[i].color = rand() % 0xFFFF;
     }
+
+    // Set up double buffer on VGA:
 
     /* set front pixel buffer to start of FPGA On-chip memory */
     *(pixel_ctrl_ptr + 1) = 0xC8000000; // first store the address in the 
@@ -52,6 +66,8 @@ int main(void)
     /* set back pixel buffer to start of SDRAM memory */
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
+
+    // Double buffer setup complete
 
     while (true)
     {
@@ -73,7 +89,7 @@ int main(void)
                 }
             }
 
-            // Draw the connecting line
+            // Draw the connecting line between previous and current rectangle
             if (i > 0) {
                 Rectangle prev_rect = rects[i-1];
                 int x0 = prev_rect.x, y0 = prev_rect.y;
@@ -83,22 +99,26 @@ int main(void)
             }
         }
 
-        // Update rect positions
+        // Update rectangle positions
         for (i = 0; i < SIZE; ++i) {
-            Rectangle* rect = &rects[i];
+            Rectangle* rect = &rects[i];    // use pointer to not create a copy
 
             if ((rect->right && rect->x + rect->width >= x_max) || (!rect->right && rect->x <= x_min)) {
-                rect->right = !rect->right;
-                rect->color = rand() % 0xFFFF;
+                // Rectangle hit a horizontal boundary
+                rect->right = !rect->right;     // Reverse horizontal direction
+                rect->color = rand() % 0xFFFF;  // Randomize color
             }
             if ((rect->down && rect->y + rect->height >= y_max) || (!rect->down && rect->y <= y_min)) {
-                rect->down = !rect->down;
-                rect->color = rand() % 0xFFFF;
+                // Rectangle hit a vertical boundary
+                rect->down = !rect->down;       // Reverse vertical direction
+                rect->color = rand() % 0xFFFF;  // Randomize color
             }
 
+            // Direction to move rectangle
             int delta_x = rect->right ? 1 : -1;
             int delta_y = rect->down ? 1 : -1;
 
+            // Update rectangle coordinates
             rect->x += delta_x;
             rect->y += delta_y;
         }
@@ -121,9 +141,8 @@ void swap(int *x, int *y) {
     *y = temp;
 }
 
+// code not shown for clear_screen() and draw_line() subroutines
 void clear_screen() {
-    // Just plot a black pixel on every pixel of the screen
-    // to clear the contents of the screen
     int x_max = 320;
     int y_max = 240;
     int x, y;
@@ -136,8 +155,11 @@ void clear_screen() {
 }
 
 void draw_line(int x0, int y0, int x1, int y1, short int color) {
-    // This is just the algorithm they gave us
-    bool is_steep = abs(y1 - y0) > abs(x1 - x0);
+    bool is_steep;
+    if (abs(y1 - y0) > abs(x1 - x0))
+        is_steep = true;
+    else
+        is_steep = false;
     if (is_steep) {
         swap(&x0, &y0);
         swap(&x1, &y1);
